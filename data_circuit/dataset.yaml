@@ -1,0 +1,6 @@
+train: /home/ubuntu/Downloads/YOLOV8/data/images/train/
+#val: /home/ubuntu/Downloads/YOLOV8/data/images/val/
+val: /home/ubuntu/Downloads/YOLOV8/data/images/test_1/
+nc: 7
+names: ['and', 'nand', 'nor', 'not', 'or', 'xnor', 'xor']
+version: 7-8-23
