@@ -56,23 +56,19 @@ from ultralytics.utils.torch_utils import (
 )
 
 class CWDLoss(nn.Module):
-    """PyTorch version of `Channel-wise Distillation for Semantic Segmentation.
-    <https://arxiv.org/abs/2011.13256>`_.
-    """
+    """PyTorch version of Channel-wise Distillation using KL divergence."""
 
     def __init__(self, channels_s, channels_t, tau=6.0):
         super().__init__()
         self.tau = tau
 
     def forward(self, y_s, y_t):
-        """Forward computation.
+        """Forward computation using KL divergence.
         Args:
-            y_s (list): The student model prediction with
-                shape (N, C, H, W) in list.
-            y_t (list): The teacher model prediction with
-                shape (N, C, H, W) in list.
+            y_s (list): The student model prediction with shape (N, C, H, W) in list.
+            y_t (list): The teacher model prediction with shape (N, C, H, W) in list.
         Return:
-            torch.Tensor: The calculated loss value of all stages.
+            torch.Tensor: The calculated KL divergence loss value of all stages.
         """
         assert len(y_s) == len(y_t)
         losses = []
@@ -81,17 +77,59 @@ class CWDLoss(nn.Module):
             assert s.shape == t.shape
             N, C, H, W = s.shape
 
-            # normalize in channel dimension
-            softmax_pred_T = F.softmax(t.view(-1, W * H) / self.tau, dim=1)
+            # Reshape and normalize student and teacher predictions
+            s_dist = F.softmax(s.view(-1, W * H) / self.tau, dim=1)
+            t_dist = F.softmax(t.view(-1, W * H) / self.tau, dim=1)
 
-            logsoftmax = torch.nn.LogSoftmax(dim=1)
-            cost = torch.sum(
-                softmax_pred_T * logsoftmax(t.view(-1, W * H) / self.tau) -
-                softmax_pred_T * logsoftmax(s.view(-1, W * H) / self.tau)) * (self.tau ** 2)
+            # Calculate KL divergence
+            kl_loss = F.kl_div(
+                F.log_softmax(s.view(-1, W * H) / self.tau, dim=1),
+                t_dist,
+                reduction='batchmean'
+            ) * (self.tau ** 2)
 
-            losses.append(cost / (C * N))
+            losses.append(kl_loss / (C * N))
+        
         loss = sum(losses)
         return loss
+
+# class CWDLoss(nn.Module):
+#     """PyTorch version of `Channel-wise Distillation for Semantic Segmentation.
+#     <https://arxiv.org/abs/2011.13256>`_.
+#     """
+
+#     def __init__(self, channels_s, channels_t, tau=6.0):
+#         super().__init__()
+#         self.tau = tau
+
+#     def forward(self, y_s, y_t):
+#         """Forward computation.
+#         Args:
+#             y_s (list): The student model prediction with
+#                 shape (N, C, H, W) in list.
+#             y_t (list): The teacher model prediction with
+#                 shape (N, C, H, W) in list.
+#         Return:
+#             torch.Tensor: The calculated loss value of all stages.
+#         """
+#         assert len(y_s) == len(y_t)
+#         losses = []
+
+#         for idx, (s, t) in enumerate(zip(y_s, y_t)):
+#             assert s.shape == t.shape
+#             N, C, H, W = s.shape
+
+#             # normalize in channel dimension
+#             softmax_pred_T = F.softmax(t.view(-1, W * H) / self.tau, dim=1)
+
+#             logsoftmax = torch.nn.LogSoftmax(dim=1)
+#             cost = torch.sum(
+#                 softmax_pred_T * logsoftmax(t.view(-1, W * H) / self.tau) -
+#                 softmax_pred_T * logsoftmax(s.view(-1, W * H) / self.tau)) * (self.tau ** 2)
+
+#             losses.append(cost / (C * N))
+#         loss = sum(losses)
+#         return loss
 
 class MGDLoss(nn.Module):
     def __init__(self,
