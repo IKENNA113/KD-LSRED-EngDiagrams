@@ -749,7 +749,7 @@ class BaseTrainer:
                         pred = self.teacher(batch['img'])
                         
                     self.d_loss = distillation_loss.get_loss()
-                    self.d_loss *- distill_weight
+                    self.d_loss *= distill_weight
                     self.loss += self.d_loss
 
                 # Backward
@@ -1192,3 +1192,28 @@ class BaseTrainer:
             f'{len(g[1])} weight(decay=0.0), {len(g[0])} weight(decay={decay}), {len(g[2])} bias(decay=0.0)'
         )
         return optimizer
+
+def kl_divergence(p, q):
+    """
+    Calculate KL divergence between two probability distributions
+    
+    Args:
+        p: First probability distribution
+        q: Second probability distribution
+    
+    Returns:
+        KL divergence value
+    """
+    # Add small epsilon to avoid division by zero
+    epsilon = 1e-10
+    
+    # Ensure both distributions sum to 1 and are non-zero
+    p = np.array(p) + epsilon
+    q = np.array(q) + epsilon
+    
+    # Normalize if needed
+    p = p / np.sum(p)
+    q = q / np.sum(q)
+    
+    # Calculate KL divergence: sum(p_i * log(p_i/q_i))
+    return np.sum(p * np.log(p/q))
